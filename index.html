@@ -319,8 +319,10 @@
   <div class="screen active" id="screen-home">
     <div class="home-header">
       <div class="mascot-greet">
-        <div class="emoji-circle">🦊</div>
-        <div class="text">おかえり！<b>たくみくん</b></div>
+        <button class="emoji-circle" id="player-icon-btn" onclick="go('screen-account')" style="border:none;cursor:pointer;font-size:24px;" title="アイコンをえらぶ">
+          <span id="player-icon">👤</span>
+        </button>
+        <div class="text">おかえり！<b id="player-name">さき</b></div>
       </div>
       <div class="streak-badge">🔥 3</div>
     </div>
@@ -342,16 +344,21 @@
         <!-- ステージ1パネル -->
         <div class="stage-panel">
           <div class="stage-badge">ステージ 1</div>
-          <div class="level-node-wrap">
-            <div class="level-node done"><span class="num">✓</span></div>
-            <div class="level-label">どうぶつ</div>
-          </div>
-          <div class="level-connector done"></div>
           <div class="level-node-wrap" style="position:relative;">
             <div class="char-pin">🦊</div>
             <button class="level-node current" onclick="go('screen-preview')">
-              <span class="num">2</span>
+              <span class="num">1</span>
             </button>
+            <div class="level-label">どうぶつ</div>
+          </div>
+          <div class="level-connector"></div>
+          <div class="level-node-wrap">
+            <div class="level-node locked"><span class="num">🔒</span></div>
+            <div class="level-label">たべもの</div>
+          </div>
+          <div class="level-connector"></div>
+          <div class="level-node-wrap">
+            <div class="level-node locked"><span class="num">🔒</span></div>
             <div class="level-label">たべもの</div>
           </div>
           <div class="level-connector"></div>
@@ -507,7 +514,7 @@
     </div>
     <div class="content">
       <h1 class="title">おうちの人 ダッシュボード</h1>
-      <p class="subtitle">たくみくんの がんばりを みてみよう</p>
+      <p class="subtitle">さきの がんばりを みてみよう</p>
       <div class="dash-row">
         <div class="dash-card"><div class="label">こんしゅうの がくしゅう日数</div><div class="value">5日</div></div>
         <div class="dash-card"><div class="label">とうたつレベル</div><div class="value">Lv.2</div></div>
@@ -520,6 +527,48 @@
       <div class="praise-box">
         💡 ほめポイント：「water」の はつおん、3かい ちょうせんして じょうたつしました。がんばりを ことばに してあげてください。
       </div>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: ACCOUNT ============ -->
+  <div class="screen" id="screen-account">
+    <div class="topbar">
+      <button class="back" onclick="go('screen-home')">←</button>
+    </div>
+    <div class="content">
+      <h1 class="title">アイコンをえらぼう</h1>
+      <p class="subtitle">クリアしたレベルのアイコンがつかえるよ！</p>
+
+      <!-- 現在のアイコン -->
+      <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:24px;">
+        <div style="width:80px;height:80px;border-radius:50%;background:#FFE3B3;display:flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 4px 0 #EFD6A0;">
+          <span id="account-preview-icon">👤</span>
+        </div>
+        <div style="margin-top:8px;font-size:13px;color:#9C8A75;font-weight:700;">いまのアイコン</div>
+      </div>
+
+      <!-- デフォルト -->
+      <div style="font-size:11px;font-weight:800;color:#9C8A75;margin-bottom:8px;">デフォルト</div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;">
+        <button class="badge-choice" data-icon="👤" onclick="selectIcon('👤', this)"
+          style="width:64px;height:64px;border-radius:50%;background:#F0E8DB;border:3px solid #EFE2CC;font-size:30px;display:flex;align-items:center;justify-content:center;">
+          👤
+        </button>
+      </div>
+
+      <!-- ゲットしたバッジ -->
+      <div style="font-size:11px;font-weight:800;color:#9C8A75;margin-bottom:8px;">クリアしたレベルのバッジ</div>
+      <div id="earned-badges" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+        <!-- JS で動的に挿入 -->
+      </div>
+
+      <!-- ロック中 -->
+      <div style="font-size:11px;font-weight:800;color:#C5B8A5;margin-bottom:8px;">🔒 まだつかえないバッジ</div>
+      <div id="locked-badges" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px; opacity:0.4;">
+        <!-- JS で動的に挿入 -->
+      </div>
+
+      <button class="btn-primary" onclick="go('screen-home')">きめた！</button>
     </div>
   </div>
 
@@ -595,6 +644,69 @@ function playTone(freqs, durEach, type = 'sine', gainVal = 0.18) {
 function playCorrectSound() {
   playTone([523.25, 659.25, 783.99], 0.16, 'sine', 0.16); // C5 E5 G5 - bright ascending
 }
+
+/* ---------------- アカウント・バッジ設定 ---------------- */
+// レベルとそのバッジ定義
+const LEVEL_BADGES = [
+  { key: 'doubutsu', label: 'どうぶつ', icon: '🐶' },
+  { key: 'tabemono', label: 'たべもの', icon: '🍎' },
+  { key: 'iro',      label: 'いろ',      icon: '🎨' },
+];
+
+// ローカルで保持（本来はlocalStorageや DB）
+let earnedLevels = []; // クリアしたレベルのkey一覧
+let selectedIcon = '👤';
+
+function selectIcon(icon, btn) {
+  selectedIcon = icon;
+  // プレビュー更新
+  document.getElementById('account-preview-icon').textContent = icon;
+  // ホームのアイコン更新
+  document.getElementById('player-icon').textContent = icon;
+  // 選択状態のスタイル
+  document.querySelectorAll('.badge-choice').forEach(b => {
+    b.style.borderColor = '#EFE2CC';
+    b.style.background = '#F0E8DB';
+  });
+  if (btn) {
+    btn.style.borderColor = '#FF9F43';
+    btn.style.background = '#FFF6E9';
+  }
+}
+
+function renderBadges() {
+  const earnedEl = document.getElementById('earned-badges');
+  const lockedEl = document.getElementById('locked-badges');
+  if (!earnedEl || !lockedEl) return;
+  earnedEl.innerHTML = '';
+  lockedEl.innerHTML = '';
+  LEVEL_BADGES.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'badge-choice';
+    btn.setAttribute('data-icon', b.icon);
+    btn.title = b.label;
+    btn.style.cssText = 'width:64px;height:64px;border-radius:50%;background:#F0E8DB;border:3px solid #EFE2CC;font-size:30px;display:flex;align-items:center;justify-content:center;';
+    btn.textContent = b.icon;
+    if (earnedLevels.includes(b.key)) {
+      btn.onclick = () => selectIcon(b.icon, btn);
+      earnedEl.appendChild(btn);
+    } else {
+      btn.disabled = true;
+      lockedEl.appendChild(btn);
+    }
+  });
+}
+
+// アカウント画面を開くたびにバッジを再描画
+function go(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('app').scrollTop = 0;
+  if (id === 'screen-account') {
+    renderBadges();
+    document.getElementById('account-preview-icon').textContent = selectedIcon;
+  }
+}
 function playWrongSound() {
   playTone([196.0, 174.61], 0.22, 'triangle', 0.13); // soft low descending, not harsh
 }
@@ -628,12 +740,6 @@ function showResultOverlay(isCorrect, onDone) {
   }, holdTime);
 }
 
-
-function go(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  document.getElementById('app').scrollTop = 0;
-}
 
 /* ---------------- stage slider ---------------- */
 let currentStage = 0;
