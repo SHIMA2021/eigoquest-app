@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>えいごクエスト プロトタイプ</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    background: #FFF6E9;
+    overscroll-behavior: none;
+  }
+  #app {
+    max-width: 430px;
+    margin: 0 auto;
+    height: 100vh;
+    height: 100dvh;
+    position: relative;
+    overflow: hidden;
+    background: #FFF6E9;
+    box-shadow: 0 0 40px rgba(0,0,0,0.08);
+  }
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .screen.active { display: flex; }
+
+  /* ---------- shared ---------- */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px 8px;
+    flex-shrink: 0;
+  }
+  .topbar .back {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #FFFFFF; border: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: #6B5B4B;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.06);
+  }
+  .progress-pills { display: flex; gap: 6px; flex: 1; margin: 0 14px; }
+  .progress-pills .pill { flex: 1; height: 10px; border-radius: 6px; background: #EFE2CC; }
+  .progress-pills .pill.fill { background: #FF9F43; }
+  .heart-count {
+    display: flex; align-items: center; gap: 4px;
+    background: #FFFFFF; border-radius: 20px; padding: 6px 12px;
+    font-weight: 700; color: #FF6B81; font-size: 14px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.06);
+  }
+  .content { flex: 1; padding: 0 20px 24px; display: flex; flex-direction: column; }
+  h1.title { font-size: 22px; color: #4A3B2C; margin: 4px 0 4px; font-weight: 800; }
+  p.subtitle { font-size: 14px; color: #9C8A75; margin: 0 0 18px; line-height: 1.5; }
+
+  .btn-primary {
+    background: #FF9F43; color: #fff; border: none; border-radius: 18px;
+    padding: 16px; font-size: 17px; font-weight: 800;
+    box-shadow: 0 5px 0 #E07B1F;
+    width: 100%;
+    transition: transform 0.06s;
+  }
+  .btn-primary:active { transform: translateY(4px); box-shadow: 0 1px 0 #E07B1F; }
+  .btn-primary.green { background: #4ECB71; box-shadow: 0 5px 0 #2FA34F; }
+  .btn-primary.green:active { box-shadow: 0 1px 0 #2FA34F; }
+  .btn-primary:disabled { background: #E3D9C7; box-shadow: 0 5px 0 #CBBFA9; color: #B3A48E; }
+
+  .btn-secondary {
+    background: #FFFFFF; color: #6B5B4B; border: 2px solid #EFE2CC; border-radius: 18px;
+    padding: 14px; font-size: 15px; font-weight: 700; width: 100%;
+  }
+
+  /* ---------- home / level map ---------- */
+  .home-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 6px;
+  }
+  .mascot-greet { display: flex; align-items: center; gap: 10px; }
+  .mascot-greet .emoji-circle {
+    width: 46px; height: 46px; border-radius: 50%; background: #FFE3B3;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+  }
+  .mascot-greet .text { font-size: 13px; color: #9C8A75; }
+  .mascot-greet .text b { display: block; font-size: 15px; color: #4A3B2C; }
+  .streak-badge {
+    background: #FFFFFF; border-radius: 16px; padding: 8px 12px;
+    display: flex; align-items: center; gap: 6px; font-weight: 800; color: #FF9F43; font-size: 14px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.06);
+  }
+  .level-map { flex: 1; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 0; }
+  .level-node-wrap { display: flex; flex-direction: column; align-items: center; position: relative; }
+
+  /* ステージ横スライド */
+  .stage-slider-wrap {
+    flex: 1; overflow: hidden; position: relative; width: 100%;
+  }
+  .stage-slider {
+    display: flex; width: 200%; height: 100%;
+    transition: transform 0.4s cubic-bezier(.4,0,.2,1);
+  }
+  .stage-panel {
+    width: 50%; height: 100%; display: flex; flex-direction: column; align-items: center;
+    padding: 16px 20px 0; overflow-y: auto;
+  }
+  .stage-badge {
+    background: #FF9F43; color: #fff; font-size: 12px; font-weight: 800;
+    padding: 4px 18px; border-radius: 20px; margin-bottom: 16px;
+  }
+  .stage-badge.locked { background: #E3D9C7; color: #B3A48E; }
+  .stage-dots {
+    display: flex; gap: 6px; justify-content: center; padding: 10px 0 6px;
+  }
+  .stage-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #EFE2CC;
+    transition: background 0.3s;
+  }
+  .stage-dot.active { background: #FF9F43; }
+  .stage-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 20px 0; width: 100%;
+  }
+  .stage-nav-btn {
+    background: #FFFFFF; border: 2px solid #EFE2CC; border-radius: 20px;
+    padding: 6px 16px; font-size: 13px; font-weight: 800; color: #9C8A75;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .stage-nav-btn:disabled { opacity: 0.3; }
+  .stage-nav-btn.next { color: #FF9F43; border-color: #FF9F43; }
+  .level-node {
+    width: 84px; height: 84px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 2px;
+    border: none; position: relative;
+  }
+  .level-node.done { background: #4ECB71; box-shadow: 0 6px 0 #2FA34F; }
+  .level-node.current { background: #FF9F43; box-shadow: 0 6px 0 #E07B1F; }
+  .level-node.locked { background: #E3D9C7; box-shadow: 0 6px 0 #CBBFA9; }
+  .level-node .num { font-size: 22px; font-weight: 800; color: #fff; }
+  .level-node.locked .num { color: #B3A48E; }
+  .level-node .sub { font-size: 10px; color: rgba(255,255,255,0.9); font-weight: 700; }
+  .level-connector { width: 6px; height: 36px; background: #EFE2CC; border-radius: 3px; }
+  .level-connector.done { background: #9EE6B0; }
+  .char-pin {
+    position: absolute; top: -38px; left: 50%; transform: translateX(-50%);
+    font-size: 30px;
+  }
+  .level-node-wrap { margin-bottom: 0; }
+  .level-label { margin-top: 6px; font-size: 12px; color: #9C8A75; font-weight: 700; text-align: center; max-width: 100px; }
+
+  .bottom-nav {
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+    background: #FFFFFF; border-top: 1px solid #F1E7D6; flex-shrink: 0;
+  }
+  .bottom-nav button {
+    background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 11px; color: #B3A48E; font-weight: 700; padding: 4px 10px;
+  }
+  .bottom-nav button .ic { font-size: 22px; }
+  .bottom-nav button.active { color: #FF9F43; }
+
+  /* ---------- level preview ---------- */
+  .word-preview-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .word-preview-item {
+    display: flex; align-items: center; gap: 12px;
+    background: #FFFFFF; border-radius: 16px; padding: 12px 14px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.04);
+  }
+  .word-preview-item .ic { font-size: 30px; width: 44px; text-align: center; }
+  .word-preview-item .words { flex: 1; }
+  .word-preview-item .jp { font-size: 13px; color: #9C8A75; }
+  .word-preview-item .en { font-size: 17px; font-weight: 800; color: #4A3B2C; }
+  .speaker-btn {
+    width: 36px; height: 36px; border-radius: 50%; background: #FFF1DC; border: none;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+
+  /* ---------- matching game ---------- */
+  .match-grid { display: flex; flex-direction: column; gap: 14px; margin: 10px 0 20px; flex: 1; }
+  .match-row { display: flex; justify-content: space-between; gap: 14px; }
+  .match-card {
+    flex: 1; background: #FFFFFF; border: 3px solid #EFE2CC; border-radius: 16px;
+    padding: 18px 8px; text-align: center; font-size: 17px; font-weight: 800; color: #4A3B2C;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.04);
+  }
+  .match-card.selected { border-color: #FF9F43; background: #FFF6E9; }
+  .match-card.correct { border-color: #4ECB71; background: #EAFBEE; color: #2FA34F; }
+  .match-card.wrong { border-color: #FF6B6B; background: #FFEDED; animation: shake 0.3s; }
+  .match-card.matched-hide { opacity: 0; pointer-events: none; }
+  #match-ok-btn { margin-top: 16px; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  /* ---------- pronunciation ---------- */
+  .pron-card { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+  .pron-icon { font-size: 64px; }
+  .pron-jp { font-size: 15px; color: #9C8A75; }
+  .pron-en { font-size: 32px; font-weight: 800; color: #4A3B2C; display: flex; align-items: center; gap: 10px; }
+  .mic-btn {
+    width: 96px; height: 96px; border-radius: 50%; background: #4FA8FF; border: none;
+    display: flex; align-items: center; justify-content: center; font-size: 38px; color: #fff;
+    box-shadow: 0 6px 0 #2E7FD1; margin-top: 10px;
+  }
+  .mic-btn.recording { background: #FF6B6B; box-shadow: 0 6px 0 #D14B4B; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .mic-hint { font-size: 13px; color: #B3A48E; margin-top: 6px; }
+  .score-result { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 90px; justify-content: center; }
+  .score-icon { font-size: 48px; }
+  .score-label { font-size: 16px; font-weight: 800; }
+  .score-label.great { color: #2FA34F; }
+  .score-label.ok { color: #FF9F43; }
+  .score-label.retry { color: #FF6B6B; }
+
+  /* ---------- spelling ---------- */
+  .spell-card { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px; padding-top: 10px; }
+  .spell-model {
+    font-size: 30px; font-weight: 800; color: #4ECB71; letter-spacing: 3px;
+    background: #EAFBEE; border: 3px dashed #9EE6B0; border-radius: 16px;
+    padding: 10px 24px; margin-bottom: -4px;
+  }
+  .spell-input {
+    width: 100%; border: 3px solid #EFE2CC; border-radius: 16px; padding: 16px;
+    font-size: 22px; text-align: center; font-weight: 800; color: #4A3B2C;
+    background: #FFFFFF; letter-spacing: 2px;
+  }
+  .spell-input::placeholder { color: #D8CBB4; font-weight: 700; font-size: 16px; }
+  .spell-input.wrong { border-color: #FF6B6B; animation: shake 0.3s; }
+  .spell-input.correct { border-color: #4ECB71; }
+  .hint-banner {
+    background: #FFF1DC; border-radius: 12px; padding: 10px 14px; font-size: 13px; color: #B57A2C;
+    text-align: center; font-weight: 700;
+  }
+
+  /* ---------- completion ---------- */
+  .complete-screen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px; text-align: center; }
+  .complete-emoji { font-size: 80px; }
+  .complete-emoji.big { font-size: 100px; }
+  .complete-title { font-size: 24px; font-weight: 800; color: #4A3B2C; }
+  .complete-sub { font-size: 14px; color: #9C8A75; }
+  .stars-row { display: flex; gap: 8px; font-size: 28px; }
+  .reward-box {
+    background: #FFFFFF; border-radius: 16px; padding: 14px 20px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.04); font-weight: 800; color: #FF9F43; font-size: 18px;
+  }
+
+  /* ---------- parent dashboard ---------- */
+  .dash-card {
+    background: #FFFFFF; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.04);
+  }
+  .dash-card .label { font-size: 12px; color: #9C8A75; font-weight: 700; }
+  .dash-card .value { font-size: 26px; font-weight: 800; color: #4A3B2C; margin-top: 2px; }
+  .dash-row { display: flex; gap: 12px; }
+  .dash-row .dash-card { flex: 1; }
+  .weak-word-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid #F1E7D6;
+  }
+  .weak-word-item:last-child { border-bottom: none; }
+  .weak-word-item .en { font-weight: 800; color: #4A3B2C; }
+  .weak-word-item .badge { background: #FFEDED; color: #D14B4B; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 10px; }
+  .praise-box {
+    background: #FFF6E9; border: 2px dashed #FFD9A0; border-radius: 14px; padding: 14px; font-size: 13px; color: #6B5B4B; line-height: 1.6;
+  }
+
+  .toast {
+    position: absolute; bottom: 90px; left: 20px; right: 20px;
+    background: #4A3B2C; color: #fff; border-radius: 14px; padding: 12px 16px;
+    font-size: 13px; text-align: center; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+    transform: translateY(10px);
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .proto-tag {
+    position: fixed; top: 6px; left: 50%; transform: translateX(-50%);
+    background: #4A3B2C; color: #fff; font-size: 10px; padding: 3px 10px; border-radius: 8px;
+    z-index: 999; font-weight: 700; opacity: 0.85;
+  }
+
+  /* ---------- central result overlay ---------- */
+  .result-overlay {
+    position: absolute; inset: 0; z-index: 500;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(74, 59, 44, 0); pointer-events: none;
+    transition: background 0.18s;
+  }
+  .result-overlay.show {
+    background: rgba(74, 59, 44, 0.32);
+  }
+  .result-card {
+    background: #FFFFFF; border-radius: 28px; padding: 36px 44px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    transform: scale(0.6); opacity: 0;
+    transition: transform 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.18s;
+    box-shadow: 0 10px 0 rgba(0,0,0,0.08);
+  }
+  .result-overlay.show .result-card { transform: scale(1); opacity: 1; }
+  .result-card.is-correct { border: 4px solid #4ECB71; }
+  .result-card.is-wrong { border: 4px solid #FF6B6B; }
+  .result-icon { font-size: 64px; line-height: 1; }
+  .result-text { font-size: 22px; font-weight: 800; }
+  .result-card.is-correct .result-text { color: #2FA34F; }
+  .result-card.is-wrong .result-text { color: #D14B4B; }
+</style>
+</head>
+<body>
+<div class="proto-tag">プロトタイプ（タップで操作できます）</div>
+<div id="app">
+
+  <!-- ============ SCREEN: HOME / LEVEL MAP ============ -->
+  <div class="screen active" id="screen-home">
+    <div class="home-header">
+      <div class="mascot-greet">
+        <div class="emoji-circle">🦊</div>
+        <div class="text">おかえり！<b>たくみくん</b></div>
+      </div>
+      <div class="streak-badge">🔥 3</div>
+    </div>
+
+    <!-- ステージナビゲーション -->
+    <div class="stage-nav">
+      <button class="stage-nav-btn" id="btn-prev-stage" onclick="slideStage(-1)" disabled>← まえ</button>
+      <div class="stage-dots">
+        <div class="stage-dot active" id="dot-0"></div>
+        <div class="stage-dot" id="dot-1"></div>
+      </div>
+      <button class="stage-nav-btn next" id="btn-next-stage" onclick="slideStage(1)" disabled>つぎ →</button>
+    </div>
+
+    <!-- 横スライドエリア -->
+    <div class="stage-slider-wrap">
+      <div class="stage-slider" id="stage-slider">
+
+        <!-- ステージ1パネル -->
+        <div class="stage-panel">
+          <div class="stage-badge">ステージ 1</div>
+          <div class="level-node-wrap">
+            <div class="level-node done"><span class="num">✓</span></div>
+            <div class="level-label">どうぶつ</div>
+          </div>
+          <div class="level-connector done"></div>
+          <div class="level-node-wrap" style="position:relative;">
+            <div class="char-pin">🦊</div>
+            <button class="level-node current" onclick="go('screen-preview')">
+              <span class="num">2</span>
+            </button>
+            <div class="level-label">たべもの</div>
+          </div>
+          <div class="level-connector"></div>
+          <div class="level-node-wrap">
+            <div class="level-node locked"><span class="num">🔒</span></div>
+            <div class="level-label">いろ</div>
+          </div>
+        </div>
+
+        <!-- ステージ2パネル（ロック中） -->
+        <div class="stage-panel" id="stage2-panel">
+          <div class="stage-badge locked">ステージ 2</div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; text-align:center;">
+            <div style="font-size:64px;">🔒</div>
+            <div style="font-size:16px; font-weight:800; color:#9C8A75;">ステージ1を<br>クリアしてね！</div>
+            <div style="font-size:13px; color:#C5B8A5;">どうぶつ・たべもの・いろ<br>すべておわると かいほうされるよ</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="active"><span class="ic">🏠</span>ホーム</button>
+      <button onclick="go('screen-parent')"><span class="ic">👪</span>おうちの人</button>
+      <button onclick="go('screen-settings')"><span class="ic">⚙️</span>せってい</button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: LEVEL PREVIEW ============ -->
+  <div class="screen" id="screen-preview">
+    <div class="topbar">
+      <button class="back" onclick="go('screen-home')">←</button>
+    </div>
+    <div class="content">
+      <h1 class="title">たべもの</h1>
+      <p class="subtitle">5つの たんごを おぼえよう。🔊 を タップすると こえが きけるよ。</p>
+      <div class="word-preview-list">
+        <div class="word-preview-item"><div class="ic">🐶</div><div class="words"><div class="jp">いぬ</div><div class="en">dog</div></div><button class="speaker-btn" onclick="playSound(this)">🔊</button></div>
+        <div class="word-preview-item"><div class="ic">🐱</div><div class="words"><div class="jp">ねこ</div><div class="en">cat</div></div><button class="speaker-btn" onclick="playSound(this)">🔊</button></div>
+        <div class="word-preview-item"><div class="ic">🐦</div><div class="words"><div class="jp">とり</div><div class="en">bird</div></div><button class="speaker-btn" onclick="playSound(this)">🔊</button></div>
+        <div class="word-preview-item"><div class="ic">🐟</div><div class="words"><div class="jp">さかな</div><div class="en">fish</div></div><button class="speaker-btn" onclick="playSound(this)">🔊</button></div>
+        <div class="word-preview-item"><div class="ic">🐰</div><div class="words"><div class="jp">うさぎ</div><div class="en">rabbit</div></div><button class="speaker-btn" onclick="playSound(this)">🔊</button></div>
+      </div>
+      <button class="btn-primary" onclick="startStep1()">① はじめる</button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: STEP1 MATCHING ============ -->
+  <div class="screen" id="screen-match">
+    <div class="topbar">
+      <button class="back" onclick="go('screen-preview')">←</button>
+      <div class="progress-pills" id="match-progress"></div>
+      <div class="heart-count">❤️ <span id="match-hearts">3</span></div>
+    </div>
+    <div class="content">
+      <h1 class="title">① いみマッチ</h1>
+      <p class="subtitle">あう えいごを 1まい えらんでね</p>
+      <div class="match-grid" id="match-grid"></div>
+      <button class="btn-primary" id="match-ok-btn" onclick="confirmMatch()" disabled>OK</button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: STEP1 COMPLETE ============ -->
+  <div class="screen" id="screen-match-done">
+    <div class="complete-screen">
+      <div class="complete-emoji">⭐️</div>
+      <div class="complete-title">いみ、ばっちり！</div>
+      <div class="complete-sub">つぎは はつおんに ちょうせん！</div>
+      <div class="stars-row">⭐️⭐️⭐️</div>
+    </div>
+    <div class="content" style="flex:0;">
+      <button class="btn-primary" onclick="startStep2()">② はつおんへ すすむ</button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: STEP2 PRONUNCIATION ============ -->
+  <div class="screen" id="screen-pron">
+    <div class="topbar">
+      <button class="back" onclick="go('screen-match-done')">←</button>
+      <div class="progress-pills" id="pron-progress"></div>
+      <div class="heart-count">❤️ <span id="pron-hearts">3</span></div>
+    </div>
+    <div class="content">
+      <h1 class="title">② はつおんチャレンジ</h1>
+      <p class="subtitle">おてほんを きいて、まねして いってみよう</p>
+      <div class="pron-card">
+        <div class="pron-icon" id="pron-icon">🐶</div>
+        <div class="pron-jp" id="pron-jp">いぬ</div>
+        <div class="pron-en">
+          <span id="pron-en">dog</span>
+          <button class="speaker-btn" onclick="playSoundWord(document.getElementById('pron-en').textContent)">🔊</button>
+        </div>
+        <button class="mic-btn" id="mic-btn" onclick="toggleRecording()">🎤</button>
+        <div class="mic-hint" id="mic-hint">タップして ろくおん</div>
+        <div class="score-result" id="score-result"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: STEP2 COMPLETE ============ -->
+  <div class="screen" id="screen-pron-done">
+    <div class="complete-screen">
+      <div class="complete-emoji">🌟</div>
+      <div class="complete-title">はつおん、じょうたつ！</div>
+      <div class="complete-sub">さいごは スペルチャレンジ！</div>
+      <div class="stars-row">⭐️⭐️⭐️</div>
+    </div>
+    <div class="content" style="flex:0;">
+      <button class="btn-primary" onclick="startStep3()">③ スペルへ すすむ</button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: STEP3 SPELLING ============ -->
+  <div class="screen" id="screen-spell">
+    <div class="topbar">
+      <button class="back" onclick="go('screen-pron-done')">←</button>
+      <div class="progress-pills" id="spell-progress"></div>
+      <div class="heart-count">❤️ <span id="spell-hearts">3</span></div>
+    </div>
+    <div class="content">
+      <h1 class="title" id="spell-phase-title">③-1 みながら かいてみよう</h1>
+      <p class="subtitle" id="spell-phase-sub">おてほんを みながら、おなじように にゅうりょくしてね</p>
+      <div class="spell-card">
+        <div class="pron-icon" id="spell-icon">🐶</div>
+        <div class="pron-jp" id="spell-jp">いぬ</div>
+        <div class="spell-model" id="spell-model" style="display:none;">dog</div>
+        <input class="spell-input" id="spell-input" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" value="" placeholder="えいごで にゅうりょく">
+        <div class="hint-banner" id="spell-hint" style="display:none;"></div>
+        <button class="btn-primary" id="spell-submit" onclick="checkSpelling()" style="margin-top:14px;">こたえる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: LEVEL CLEAR ============ -->
+  <div class="screen" id="screen-level-clear">
+    <div class="complete-screen">
+      <div class="complete-emoji big">🏆</div>
+      <div class="complete-title">レベル2 クリア！</div>
+      <div class="complete-sub">「どうぶつ」の たんご、ぜんぶ おぼえたね！</div>
+      <div class="reward-box">🦊 きつねが しんかした！</div>
+      <div class="stars-row">⭐️⭐️⭐️⭐️⭐️</div>
+    </div>
+    <div class="content" style="flex:0; gap:10px; display:flex; flex-direction:column;">
+      <button class="btn-primary green" onclick="resetAndGoHome()">ホームに もどる</button>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: PARENT DASHBOARD ============ -->
+  <div class="screen" id="screen-parent">
+    <div class="topbar">
+      <button class="back" onclick="go('screen-home')">←</button>
+    </div>
+    <div class="content">
+      <h1 class="title">おうちの人 ダッシュボード</h1>
+      <p class="subtitle">たくみくんの がんばりを みてみよう</p>
+      <div class="dash-row">
+        <div class="dash-card"><div class="label">こんしゅうの がくしゅう日数</div><div class="value">5日</div></div>
+        <div class="dash-card"><div class="label">とうたつレベル</div><div class="value">Lv.2</div></div>
+      </div>
+      <div class="dash-card">
+        <div class="label" style="margin-bottom:8px;">にがてかも？な たんご</div>
+        <div class="weak-word-item"><span class="en">water</span><span class="badge">△ が おおい</span></div>
+        <div class="weak-word-item"><span class="en">rabbit</span><span class="badge">△ が おおい</span></div>
+      </div>
+      <div class="praise-box">
+        💡 ほめポイント：「water」の はつおん、3かい ちょうせんして じょうたつしました。がんばりを ことばに してあげてください。
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN: SETTINGS ============ -->
+  <div class="screen" id="screen-settings">
+    <div class="topbar">
+      <button class="back" onclick="go('screen-home')">←</button>
+    </div>
+    <div class="content">
+      <h1 class="title">せってい</h1>
+      <div class="dash-card" style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700; color:#4A3B2C;">まいにち つうち</span>
+        <span style="color:#9C8A75; font-size:13px;">よる7:00</span>
+      </div>
+      <div class="dash-card" style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:700; color:#4A3B2C;">こえの おおきさ</span>
+        <span style="color:#9C8A75; font-size:13px;">80%</span>
+      </div>
+      <div class="dash-card" style="font-size:13px; color:#9C8A75;">
+        ※ プロトタイプのため、せっていの へんこうは できません
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="result-overlay" id="result-overlay">
+    <div class="result-card" id="result-card">
+      <div class="result-icon" id="result-icon">⭕️</div>
+      <div class="result-text" id="result-text">せいかい！</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const words = [
+  { icon: '🐶', jp: 'いぬ', en: 'dog' },
+  { icon: '🐱', jp: 'ねこ', en: 'cat' },
+  { icon: '🐦', jp: 'とり', en: 'bird' },
+  { icon: '🐟', jp: 'さかな', en: 'fish' },
+  { icon: '🐰', jp: 'うさぎ', en: 'rabbit' },
+];
+
+/* ---------------- sound effects (WebAudio, no asset files needed) ---------------- */
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AC();
+  }
+  return audioCtx;
+}
+function playTone(freqs, durEach, type = 'sine', gainVal = 0.18) {
+  try {
+    const ctx = getAudioCtx();
+    let t = ctx.currentTime;
+    freqs.forEach(f => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = f;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(gainVal, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + durEach);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + durEach + 0.02);
+      t += durEach * 0.82;
+    });
+  } catch (e) { /* audio unavailable, fail silently */ }
+}
+function playCorrectSound() {
+  playTone([523.25, 659.25, 783.99], 0.16, 'sine', 0.16); // C5 E5 G5 - bright ascending
+}
+function playWrongSound() {
+  playTone([196.0, 174.61], 0.22, 'triangle', 0.13); // soft low descending, not harsh
+}
+
+/* ---------------- central result overlay (correct/incorrect) ---------------- */
+function showResultOverlay(isCorrect, onDone) {
+  const overlay = document.getElementById('result-overlay');
+  const card = document.getElementById('result-card');
+  const icon = document.getElementById('result-icon');
+  const text = document.getElementById('result-text');
+
+  card.classList.remove('is-correct', 'is-wrong');
+  if (isCorrect) {
+    card.classList.add('is-correct');
+    icon.textContent = '⭕️';
+    const praises = ['せいかい！', 'やった！', 'すごい！', 'ばっちり！'];
+    text.textContent = praises[Math.floor(Math.random() * praises.length)];
+    playCorrectSound();
+  } else {
+    card.classList.add('is-wrong');
+    icon.textContent = '✖️';
+    text.textContent = 'おしい！もういちど';
+    playWrongSound();
+  }
+
+  overlay.classList.add('show');
+  const holdTime = isCorrect ? 750 : 700;
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    if (onDone) onDone();
+  }, holdTime);
+}
+
+
+function go(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('app').scrollTop = 0;
+}
+
+/* ---------------- stage slider ---------------- */
+let currentStage = 0;
+const STAGE_UNLOCKED = [true, false]; // ステージ1は解放済み、ステージ2はロック
+
+function slideStage(dir) {
+  const next = currentStage + dir;
+  if (next < 0 || next >= STAGE_UNLOCKED.length) return;
+  currentStage = next;
+  document.getElementById('stage-slider').style.transform = `translateX(-${currentStage * 50}%)`;
+  // ドット更新
+  document.querySelectorAll('.stage-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === currentStage);
+  });
+  // ボタン更新
+  document.getElementById('btn-prev-stage').disabled = currentStage === 0;
+  document.getElementById('btn-next-stage').disabled = currentStage >= STAGE_UNLOCKED.length - 1 || !STAGE_UNLOCKED[currentStage + 1];
+}
+
+function unlockStage2() {
+  STAGE_UNLOCKED[1] = true;
+  document.getElementById('btn-next-stage').disabled = false;
+  // ステージ2のロック表示を解除
+  const panel = document.getElementById('stage2-panel');
+  panel.querySelector('.stage-badge').className = 'stage-badge';
+  panel.querySelector('.stage-badge').textContent = 'ステージ 2';
+  panel.querySelector('div[style*="flex:1"]').innerHTML = `
+    <div style="font-size:64px;">🎉</div>
+    <div style="font-size:16px; font-weight:800; color:#4A3B2C;">ステージ2<br>かいほう！</div>
+    <div style="font-size:13px; color:#9C8A75;">じゅんびちゅう…<br>もうすこし まってね</div>
+  `;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1400);
+}
+
+function playSound(btn) {
+  // ボタンの親要素から英単語を取得
+  const enEl = btn.closest('.word-preview-item')?.querySelector('.en');
+  const word = enEl ? enEl.textContent.trim() : '';
+  if (!word) return;
+
+  btn.style.transform = 'scale(1.15)';
+  setTimeout(() => btn.style.transform = 'scale(1)', 200);
+
+  // Web Speech APIで英語読み上げ
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel(); // 再生中のものをキャンセル
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.lang = 'en-US';
+    utter.rate = 0.85;  // 少しゆっくり（子供向け）
+    utter.pitch = 1.0;
+    // 英語の声を選ぶ（ある場合のみ）
+    const voices = window.speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService);
+    if (enVoice) utter.voice = enVoice;
+    window.speechSynthesis.speak(utter);
+  } else {
+    showToast('このブラウザは音声再生に対応していません');
+  }
+}
+
+// 発音チャレンジのお手本再生（単語を直接渡す版）
+function playSoundWord(word) {
+  if (!word) return;
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.lang = 'en-US';
+    utter.rate = 0.85;
+    utter.pitch = 1.0;
+    const voices = window.speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang.startsWith('en') && v.localService);
+    if (enVoice) utter.voice = enVoice;
+    window.speechSynthesis.speak(utter);
+  }
+}
+
+/* ---------------- STEP 1: MATCHING ---------------- */
+let matchState = {};
+
+function buildProgressPills(containerId, total, current) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const p = document.createElement('div');
+    p.className = 'pill' + (i < current ? ' fill' : '');
+    c.appendChild(p);
+  }
+}
+
+function startStep1() {
+  matchState = { order: shuffle([0,1,2,3,4]), solved: 0, selected: null, hearts: 3 };
+  document.getElementById('match-hearts').textContent = matchState.hearts;
+  renderMatch();
+  go('screen-match');
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function renderMatch() {
+  buildProgressPills('match-progress', 5, matchState.solved);
+  const idx = matchState.order[matchState.solved];
+  const w = words[idx];
+  matchState.correctEn = w.en;
+  matchState.chosenCard = null;
+  const grid = document.getElementById('match-grid');
+  const distractorPool = words.filter((_, i) => i !== idx);
+  const distractors = shuffle(distractorPool).slice(0, 2);
+  const enOptions = shuffle([w, ...distractors]);
+
+  grid.innerHTML = `
+    <div class="match-row">
+      <div class="match-card" style="flex:1; background:#FFF1DC; border-color:#FFE3B3;">
+        <div style="font-size:30px; margin-bottom:6px;">${w.icon}</div>${w.jp}
+      </div>
+    </div>
+    <div class="match-row" id="en-options"></div>
+  `;
+  const enWrap = document.getElementById('en-options');
+  enOptions.forEach(opt => {
+    const card = document.createElement('button');
+    card.className = 'match-card';
+    card.textContent = opt.en;
+    card.onclick = () => selectMatch(card, opt.en);
+    enWrap.appendChild(card);
+  });
+  const okBtn = document.getElementById('match-ok-btn');
+  okBtn.disabled = true;
+  matchState.locked = false;
+}
+
+function selectMatch(card, chosenEn) {
+  if (matchState.locked) return;
+  document.querySelectorAll('#en-options .match-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  matchState.chosenCard = card;
+  matchState.chosenEn = chosenEn;
+  document.getElementById('match-ok-btn').disabled = false;
+}
+
+function confirmMatch() {
+  if (matchState.locked || !matchState.chosenCard) return;
+  matchState.locked = true;
+  const card = matchState.chosenCard;
+  const isCorrect = matchState.chosenEn === matchState.correctEn;
+  document.getElementById('match-ok-btn').disabled = true;
+
+  if (isCorrect) {
+    card.classList.remove('selected');
+    card.classList.add('correct');
+    showResultOverlay(true, () => {
+      matchState.solved++;
+      if (matchState.solved >= 5) {
+        go('screen-match-done');
+      } else {
+        renderMatch();
+      }
+    });
+  } else {
+    card.classList.remove('selected');
+    card.classList.add('wrong');
+    matchState.hearts = Math.max(0, matchState.hearts - 1);
+    document.getElementById('match-hearts').textContent = matchState.hearts;
+    showResultOverlay(false, () => {
+      card.classList.remove('wrong');
+      matchState.chosenCard = null;
+      matchState.locked = false;
+    });
+  }
+}
+
+/* ---------------- STEP 2: PRONUNCIATION ---------------- */
+let pronState = {};
+
+function startStep2() {
+  pronState = { order: shuffle([0,1,2,3,4]), solved: 0, hearts: 3, attempt: 0 };
+  document.getElementById('pron-hearts').textContent = pronState.hearts;
+  renderPron();
+  go('screen-pron');
+}
+
+function renderPron() {
+  buildProgressPills('pron-progress', 5, pronState.solved);
+  const idx = pronState.order[pronState.solved];
+  const w = words[idx];
+  document.getElementById('pron-icon').textContent = w.icon;
+  document.getElementById('pron-jp').textContent = w.jp;
+  document.getElementById('pron-en').textContent = w.en;
+  document.getElementById('score-result').innerHTML = '';
+  document.getElementById('mic-hint').textContent = 'タップして ろくおん';
+  const micBtn = document.getElementById('mic-btn');
+  micBtn.classList.remove('recording');
+  micBtn.disabled = false;
+  pronState.attempt = 0;
+}
+
+/* ---------------- Web Speech API による発音チェック（Azureなし・登録不要） ---------------- */
+
+function toggleRecording() {
+  const micBtn = document.getElementById('mic-btn');
+  if (micBtn.disabled) return;
+
+  // ブラウザが音声認識に対応しているか確認
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showToast('このブラウザは音声認識に対応していません。Chromeをお使いください。');
+    return;
+  }
+
+  // 採点対象の単語
+  const idx = pronState.order[pronState.solved];
+  const word = words[idx].en;
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 3;
+
+  micBtn.classList.add('recording');
+  document.getElementById('mic-hint').textContent = 'きいています...';
+  micBtn.disabled = true;
+
+  recognition.start();
+
+  recognition.onresult = (event) => {
+    micBtn.classList.remove('recording');
+    document.getElementById('mic-hint').textContent = 'さいてん中...';
+
+    // 認識結果（複数候補）をすべてチェック
+    const results = event.results[0];
+    let bestMatch = false;
+    let recognizedTexts = [];
+
+    for (let i = 0; i < results.length; i++) {
+      const text = results[i].transcript.toLowerCase().trim().replace(/[.,!?]/g, '');
+      recognizedTexts.push(text);
+      if (text === word.toLowerCase()) {
+        bestMatch = true;
+      }
+    }
+
+    console.log('認識結果:', recognizedTexts, '正解:', word);
+
+    // スコア判定
+    const confidence = results[0].confidence || 0;
+    let level;
+    if (bestMatch) {
+      level = confidence >= 0.8 ? 'great' : 'ok';
+    } else {
+      // 部分一致チェック（例：「a dog」→「dog」）
+      const partialMatch = recognizedTexts.some(t => t.includes(word.toLowerCase()) || word.toLowerCase().includes(t));
+      level = partialMatch ? 'ok' : 'retry';
+    }
+
+    showScoreResult(level);
+  };
+
+  recognition.onerror = (event) => {
+    micBtn.classList.remove('recording');
+    micBtn.disabled = false;
+    document.getElementById('mic-hint').textContent = 'タップして ろくおん';
+
+    if (event.error === 'no-speech') {
+      showToast('声が聞こえませんでした。もういちど！');
+    } else if (event.error === 'not-allowed') {
+      showToast('マイクの使用を許可してください');
+    } else {
+      showToast('もういちどためしてね！');
+    }
+  };
+
+  recognition.onend = () => {
+    micBtn.classList.remove('recording');
+    if (micBtn.disabled && document.getElementById('mic-hint').textContent === 'きいています...') {
+      // onresultが呼ばれなかった場合のフォールバック
+      micBtn.disabled = false;
+      document.getElementById('mic-hint').textContent = 'タップして ろくおん';
+      showToast('もういちどためしてね！');
+    }
+  };
+}
+
+// Float32Array の PCMデータを WAV形式のArrayBufferに変換する
+function pcmToWav(chunks, sampleRate) {
+  const samples = mergeFloat32Arrays(chunks);
+  const int16 = float32ToInt16(samples);
+  const wavHeader = createWavHeader(int16.byteLength, sampleRate);
+  const wav = new Uint8Array(wavHeader.byteLength + int16.byteLength);
+  wav.set(new Uint8Array(wavHeader), 0);
+  wav.set(new Uint8Array(int16.buffer), wavHeader.byteLength);
+  return wav.buffer;
+}
+
+function mergeFloat32Arrays(arrays) {
+  const total = arrays.reduce((sum, a) => sum + a.length, 0);
+  const result = new Float32Array(total);
+  let offset = 0;
+  for (const arr of arrays) { result.set(arr, offset); offset += arr.length; }
+  return result;
+}
+
+function float32ToInt16(buffer) {
+  const result = new Int16Array(buffer.length);
+  for (let i = 0; i < buffer.length; i++) {
+    result[i] = Math.max(-32768, Math.min(32767, Math.round(buffer[i] * 32767)));
+  }
+  return result;
+}
+
+function createWavHeader(dataByteLength, sampleRate) {
+  const buffer = new ArrayBuffer(44);
+  const view = new DataView(buffer);
+  const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + dataByteLength, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);   // PCM
+  view.setUint16(22, 1, true);   // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true); // byte rate
+  view.setUint16(32, 2, true);   // block align
+  view.setUint16(34, 16, true);  // bits per sample
+  writeStr(36, 'data');
+  view.setUint32(40, dataByteLength, true);
+  return buffer;
+}
+
+function showScoreResult(result) {
+  const box = document.getElementById('score-result');
+  const micBtn = document.getElementById('mic-btn');
+  if (result === 'retry') {
+    box.innerHTML = `<div class="score-icon">🔺</div><div class="score-label retry">もういちど！</div>`;
+    showResultOverlay(false, () => {
+      document.getElementById('mic-hint').textContent = 'タップして ろくおん';
+      micBtn.disabled = false;
+    });
+  } else {
+    const isGreat = result === 'great';
+    box.innerHTML = `<div class="score-icon">${isGreat ? '🟢' : '🟡'}</div><div class="score-label ${isGreat ? 'great' : 'ok'}">${isGreat ? 'すごい！◎' : 'いいね！○'}</div>`;
+    micBtn.disabled = true;
+    showResultOverlay(true, () => {
+      pronState.solved++;
+      if (pronState.solved >= 5) {
+        go('screen-pron-done');
+      } else {
+        renderPron();
+      }
+    });
+  }
+}
+
+/* ---------------- STEP 3: SPELLING ---------------- */
+let spellState = {};
+
+function startStep3() {
+  spellState = { order: shuffle([0,1,2,3,4]), wordIndex: 0, hearts: 3, wrongCount: 0, phase: 1 };
+  document.getElementById('spell-hearts').textContent = spellState.hearts;
+  renderSpell();
+  go('screen-spell');
+  // give the on-screen keyboard a moment then focus the field
+  setTimeout(() => document.getElementById('spell-input').focus(), 300);
+}
+
+function renderSpell() {
+  // each word = 2 steps (model-copy then recall), 5 words = 10 steps total
+  const totalSteps = 10;
+  const stepIndex = spellState.wordIndex * 2 + (spellState.phase - 1);
+  buildProgressPills('spell-progress', totalSteps, stepIndex);
+
+  const idx = spellState.order[spellState.wordIndex];
+  const w = words[idx];
+  spellState.word = w;
+  spellState.wrongCount = 0;
+
+  document.getElementById('spell-icon').textContent = w.icon;
+  document.getElementById('spell-jp').textContent = w.jp;
+
+  const input = document.getElementById('spell-input');
+  input.value = '';
+  input.classList.remove('wrong', 'correct');
+  document.getElementById('spell-hint').style.display = 'none';
+
+  const modelEl = document.getElementById('spell-model');
+  const titleEl = document.getElementById('spell-phase-title');
+  const subEl = document.getElementById('spell-phase-sub');
+
+  if (spellState.phase === 1) {
+    modelEl.style.display = 'block';
+    modelEl.textContent = w.en;
+    titleEl.textContent = '③-1 みながら かいてみよう';
+    subEl.textContent = 'うえの おてほんを みながら、おなじように にゅうりょくしてね';
+  } else {
+    modelEl.style.display = 'none';
+    titleEl.textContent = '③-2 じぶんで かいてみよう';
+    subEl.textContent = 'いまの たんごを、おてほんなしで かいてみよう';
+  }
+}
+
+function checkSpelling() {
+  const input = document.getElementById('spell-input');
+  const typed = input.value.trim().toLowerCase();
+  const correct = typed === spellState.word.en.toLowerCase();
+
+  if (!typed) return;
+
+  if (correct) {
+    input.classList.add('correct');
+    showResultOverlay(true, () => {
+      input.blur();
+      advanceSpell();
+    });
+  } else {
+    input.classList.add('wrong');
+    spellState.wrongCount++;
+    spellState.hearts = Math.max(0, spellState.hearts - 1);
+    document.getElementById('spell-hearts').textContent = spellState.hearts;
+    if (spellState.phase === 2 && spellState.wrongCount >= 3) {
+      const hintEl = document.getElementById('spell-hint');
+      hintEl.style.display = 'block';
+      hintEl.textContent = `ヒント：さいしょの もじは「${spellState.word.en[0]}」だよ`;
+    }
+    showResultOverlay(false, () => {
+      input.classList.remove('wrong');
+      input.value = '';
+      input.focus();
+    });
+  }
+}
+
+function advanceSpell() {
+  if (spellState.phase === 1) {
+    // same word, now recall without the model
+    spellState.phase = 2;
+    renderSpell();
+    setTimeout(() => document.getElementById('spell-input').focus(), 250);
+  } else {
+    // word's mini-cycle complete, move to next word (or finish)
+    spellState.wordIndex++;
+    if (spellState.wordIndex >= 5) {
+      go('screen-level-clear');
+    } else {
+      spellState.phase = 1;
+      renderSpell();
+      setTimeout(() => document.getElementById('spell-input').focus(), 250);
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const spellInput = document.getElementById('spell-input');
+  if (spellInput) {
+    spellInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') checkSpelling();
+    });
+  }
+});
+
+
+function resetAndGoHome() {
+  go('screen-home');
+}
+</script>
+</body>
+</html>
